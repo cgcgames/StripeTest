@@ -1,0 +1,117 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<div class="jumbotron">
+    <h1>ASP.NET</h1>
+    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
+    <p><a href="https://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+</div>
+
+<div class="row">
+    <div id="donate-container">
+        <p>Variable amount field</p>
+        £ <input type="text" style="width: 155px;margin-right: 5px;" size=10 placeholder="Enter Amount" name="raw-amount"><button id="donate-button" class="btn donate-button btn-primary">Support</button>
+        <div id="error-amount-message" style="color:#c70c0c;display:none">
+            <p>Enter an amount, e.g 5 or 5.00</p>
+        </div>
+    </div>
+
+    <div id="donate-container">
+        <p>Fixed Amount Field</p>
+        <button id="donate-button" value="2000" class="btn donate-button btn-primary">Pay £20</button>
+        <div id="error-amount-message" style="color:#c70c0c;display:none">
+            <p>Enter an amount, e.g 5 or 5.00</p>
+        </div>
+    </div>
+
+
+    <br />
+    <div id="error-message" style="color:#c70c0c;display:none">
+        <p>Error processing payment, please try again</p>
+    </div>
+    <div id="thank-you-message" style="display:none;margin-bottom:30px;">
+        <h2>Thank you for donation!</h2>
+    </div>
+</div>
+
+
+@section scripts {
+    <script>
+        $(document).ready(function () {
+            var amount;
+            var stripe_helpers = {
+                getAmount: function (raw_amount) {
+                    // Parses raw input and returns $-value in cents
+                    if (raw_amount.indexOf('.') === -1) {
+                        raw_amount = raw_amount + '.00';
+                    }
+                    return parseInt(parseFloat(raw_amount) * 100);
+                }
+            };
+
+            var handler = StripeCheckout.configure({
+                key: 'pk_test_tKsc9rV1kgMTFecILUS3VRig',
+                image: '/stripeLogo.png',
+                locale: 'auto',
+                token: function (token) {
+                    $.ajax({
+                        url: 'http://localhost:56748/Home/Charge?stripeEmail=' +
+                        token.email +
+                        '&stripeToken=' +
+                        token.id +
+                        '&amount=' +
+                        amount,
+                        type: 'GET',
+                        dataType: 'text',
+                        error: function (xhr, textStatus, errorThrown) {
+                            window.location = text;
+                        },
+                        success: function (data, textStatus, xhr) {
+                        }
+
+                    }).done(function (text) {
+                        window.location = text;
+
+                        //if (text == "success") {
+                        //    $('#error-message').hide();
+                        //    $('#donate-container').hide();
+                        //    $('#thank-you-message').show();
+                        //}
+                        //else {
+                        //    $('#error-message').show();
+                        //}
+                    });
+                }
+            });
+
+            $('.donate-button').on('click',
+                function (e) {
+                    // Open Checkout with further options
+                    if (parseInt($(this).val()) > 0) {
+                        amount = parseInt($(this).val());
+                    } else {
+                        amount = stripe_helpers.getAmount($('input[name="raw-amount"]').val());
+                    }
+                    if (amount != null && amount > 0) {
+                        //$('#error-amount-message').hide();
+                        handler.open({
+                            name: 'StripeTest',
+                            description: 'This is an Item description',
+                            amount: amount,
+                            currency: "gbp"
+                        });
+                        e.preventDefault();
+                    } else {
+                        //$('#error-amount-message').show();
+                    }
+                });
+
+            // Close Checkout on page navigation
+            $(window).on('popstate',
+                function () {
+                    handler.close();
+                });
+        });
+    </script>
+}
