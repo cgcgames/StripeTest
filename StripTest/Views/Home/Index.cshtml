@@ -24,11 +24,33 @@
             <p>Enter an amount, e.g 5 or 5.00</p>
         </div>
     </div>
+    <br/>
+    
+    <p style="margin-top: 40px">Elements test</p>
+    <form action="/Home/Charge" style="width: 400px;" method="post" id="payment-form">
+        <div class="form-row">
+            <label for="email">Enter Email Address:</label>
+            <input name="email" type="email" id="email" />
+            <br />
+            <label for="card-element">
+                Credit or debit card
+            </label>
+            <div id="card-element">
+                <!-- a Stripe Element will be inserted here. -->
+            </div>
+
+            <!-- Used to display Element errors -->
+            <div id="card-errors" role="alert"></div>
+            <input type="hidden" value="1500" id ="amount"/>
+        </div>
+
+        <button id="submit">Submit Payment</button>
+    </form>
 
 
     <br />
     <div id="error-message" style="color:#c70c0c;display:none">
-        <p>Error processing payment, please try again</p>
+        <p>Error no value inputed</p>
     </div>
     <div id="thank-you-message" style="display:none;margin-bottom:30px;">
         <h2>Thank you for donation!</h2>
@@ -39,7 +61,38 @@
 @section scripts {
     <script>
         $(document).ready(function () {
+            //checkout js handler ----------------------------------------
             var amount;
+            var stripeTokenHandler = function (token, amount) {
+                $.ajax({
+                    url: 'http://localhost:56748/Home/Charge?stripeEmail=' +
+                        token.email +
+                        '&stripeToken=' +
+                        token.id +
+                        '&amount=' +
+                        amount,
+                    type: 'GET',
+                    dataType: 'text',
+                    error: function (xhr, textStatus, errorThrown) {
+                        $('#error-amount-message').show();
+                        $(form).find('#submit').removeAttr("disabled");
+                    },
+                    success: function (data, textStatus, xhr) {
+                    }
+
+                }).done(function (text) {
+                    window.location = text;
+
+                    //if (text == "success") {
+                    //    $('#error-message').hide();
+                    //    $('#donate-container').hide();
+                    //    $('#thank-you-message').show();
+                    //}
+                    //else {
+                    //    $('#error-message').show();
+                    //}
+                });
+            }
             var stripe_helpers = {
                 getAmount: function (raw_amount) {
                     // Parses raw input and returns $-value in cents
@@ -103,7 +156,7 @@
                         });
                         e.preventDefault();
                     } else {
-                        //$('#error-amount-message').show();
+                        $('#error-amount-message').show();
                     }
                 });
 
@@ -112,6 +165,71 @@
                 function () {
                     handler.close();
                 });
+
+            //end checkout js handler ----------------------------------------
+
+            //elements demo -----------------------------------------
+            var stripe = Stripe('pk_test_tKsc9rV1kgMTFecILUS3VRig');
+            var elements = stripe.elements();
+
+            var style = {
+                base: {
+                    // Add your base input styles here. For example:
+                    lineHeight: '24px',
+                    color: '#32325d',
+                    fontSize: '16px',
+                    '::placeholder': {
+                        color: '#aab7c4'
+                    }
+                },
+                invalid: {
+                    color: '#fa755a',
+                    iconColor: '#fa755a'
+                }
+            };
+
+            // Create an instance of the card Element
+            var card = elements.create('card',
+                {
+                    hidePostalCode: true,
+                    style: style
+                });
+
+            // Add an instance of the card Element into the `card-element` <div>
+            card.mount('#card-element');
+
+            card.addEventListener('change', function(event) {
+                var displayError = document.getElementById('card-errors');
+                if (event.error) {
+                    displayError.textContent = event.error.message;
+                } else {
+                    displayError.textContent = '';
+                }
+            });
+
+            var form = document.getElementById('payment-form');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                $(form).find('#submit').attr("disabled", "disabled");
+
+                var extraDetails = {
+                    email: form.querySelector('input[name=email]').value
+                };
+
+                stripe.createToken(card, extraDetails).then(function(result) {
+                    if (result.error) {
+                        // Inform the user if there was an error
+                        var errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = result.error.message;
+                        $(form).find('#submit').removeAttr("disabled");
+                    } else {
+                        var amount = $(form).find('#amount').val();
+                        // Send the token to your server
+                        stripeTokenHandler(result.token, amount);
+                    }
+                });
+            });
+            //end elemtns demo --------------------------------------
         });
     </script>
 }
